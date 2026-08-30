@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "UiResources.h"
+
 using Microsoft::WRL::Callback;
 using Microsoft::WRL::ComPtr;
 
@@ -134,6 +136,8 @@ HRESULT App::CreateWebView() {
                     ::PostQuitMessage(1);
                     return result;
                 }
+                // Needed later to build responses for embedded resources.
+                environment_ = environment;
 
                 return environment->CreateCoreWebView2Controller(
                     window_,
@@ -163,39 +167,10 @@ HRESULT App::OnWebViewReady(ICoreWebView2Controller* controller) {
         settings->put_IsZoomControlEnabled(FALSE);
     }
 
-    // Serve ./ui as https://appassets.example/ (read-only for the page).
-    //
-    // Every failure below has to be reported: if the mapping is not registered,
-    // WebView2 falls back to real DNS and the user sees a confusing
-    // ERR_NAME_NOT_RESOLVED instead of the actual problem.
-    const std::wstring uiDir = ResolveUiDirectory();
-
-    if (!::PathFileExistsW((uiDir + L"\\index.html").c_str())) {
-        ShowFatalError(L"The user interface is missing.\n\n"
-                       L"Expected:\n" + uiDir +
-                       L"\\index.html\n\n"
-                       L"Keep the 'ui' folder next to lifenvader.exe - copying the .exe on "
-                       L"its own is not enough.");
+    const HRESULT served = ServeUserInterface();
+    if (FAILED(served)) {
         ::PostQuitMessage(1);
-        return E_FAIL;
-    }
-
-    ComPtr<ICoreWebView2_3> webview3;
-    HRESULT hr = webview_.As(&webview3);
-    if (FAILED(hr)) {
-        ShowFatalError(L"This WebView2 runtime is too old: it does not provide "
-                       L"ICoreWebView2_3.\n\nInstall the current WebView2 runtime from\n"
-                       L"https://developer.microsoft.com/microsoft-edge/webview2/");
-        ::PostQuitMessage(1);
-        return hr;
-    }
-
-    hr = webview3->SetVirtualHostNameToFolderMapping(
-        kVirtualHost, uiDir.c_str(), COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_DENY_CORS);
-    if (FAILED(hr)) {
-        ShowFatalError(L"Could not map the UI folder:\n" + uiDir);
-        ::PostQuitMessage(1);
-        return hr;
+        return served;
     }
 
     // JS -> C++
@@ -220,6 +195,141 @@ HRESULT App::OnWebViewReady(ICoreWebView2Controller* controller) {
 
     ResizeWebView();
     webview_->Navigate(kStartUrl);
+    return S_OK;
+}
+
+HRESULT App::ServeUserInterface() {
+    // A ui/ folder beside the executable wins, so the interface can be edited
+    // without recompiling. Shipped builds fall back to the embedded copy.
+    const std::wstring uiDir = ResolveUiDirectory();
+    if (::PathFileExistsW((uiDir + L"\\index.html").c_str())) {
+        return ServeFromFolder(uiDir);
+    }
+    return ServeFromEmbeddedResources();
+}
+
+HRESULT App::ServeFromFolder(const std::wstring& uiDir) {
+    // Failures here must be reported: without the mapping WebView2 falls back
+    // to real DNS and shows ERR_NAME_NOT_RESOLVED, which explains nothing.
+    ComPtr<ICoreWebView2_3> webview3;
+    HRESULT hr = webview_.As(&webview3);
+    if (FAILED(hr)) {
+        ShowFatalError(L"This WebView2 runtime is too old: it does not provide "
+                       L"ICoreWebView2_3.\n\nInstall the current runtime from\n"
+                       L"https://developer.microsoft.com/microsoft-edge/webview2/");
+        return hr;
+    }
+
+    hr = webview3->SetVirtualHostNameToFolderMapping(
+        kVirtualHost, uiDir.c_str(), COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_DENY_CORS);
+    if (FAILED(hr)) {
+        ShowFatalError(L"Could not map the UI folder:\n" + uiDir);
+    }
+    return hr;
+}
+
+HRESULT App::ServeFromEmbeddedResources() {
+    if (kUiResourceCount == 0) {
+        ShowFatalError(L"This build contains no embedded user interface.");
+        return E_FAIL;
+    }
+
+    HRESULT hr = webview_->AddWebResourceRequestedFilter(
+        L"https://appassets.example/*", COREWEBVIEW2_WEB_RESOURCE_CONTEXT_ALL);
+    if (FAILED(hr)) {
+        ShowFatalError(L"Could not install the resource handler for the user interface.");
+        return hr;
+    }
+
+    EventRegistrationToken token = {};
+    return webview_->add_WebResourceRequested(
+        Callback<ICoreWebView2WebResourceRequestedEventHandler>(
+            [this](ICoreWebView2*, ICoreWebView2WebResourceRequestedEventArgs* args) -> HRESULT {
+                return OnResourceRequested(args);
+            })
+            .Get(),
+        &token);
+}
+
+HRESULT App::OnResourceRequested(ICoreWebView2WebResourceRequestedEventArgs* args) {
+    ComPtr<ICoreWebView2WebResourceRequest> request;
+    if (FAILED(args->get_Request(&request))) {
+        return S_OK;  // let WebView2 handle it
+    }
+
+    LPWSTR rawUri = nullptr;
+    if (FAILED(request->get_Uri(&rawUri)) || rawUri == nullptr) {
+        return S_OK;
+    }
+    const std::wstring uri(rawUri);
+    ::CoTaskMemFree(rawUri);
+
+    const UiResource* match = FindEmbeddedResource(uri);
+    if (match == nullptr) {
+        return RespondNotFound(args);
+    }
+
+    // Resource bytes stay mapped for the lifetime of the process; no free needed.
+    const HRSRC info = ::FindResourceW(nullptr, MAKEINTRESOURCEW(match->id), RT_RCDATA);
+    const HGLOBAL handle = info ? ::LoadResource(nullptr, info) : nullptr;
+    const void* bytes = handle ? ::LockResource(handle) : nullptr;
+    if (bytes == nullptr) {
+        return RespondNotFound(args);
+    }
+    const DWORD size = ::SizeofResource(nullptr, info);
+
+    ComPtr<IStream> stream;
+    stream.Attach(::SHCreateMemStream(static_cast<const BYTE*>(bytes), size));
+    if (!stream) {
+        return RespondNotFound(args);
+    }
+
+    // Everything is served from the binary, so it can be cached indefinitely.
+    std::wstring headers = L"Content-Type: ";
+    headers += match->mime;
+    headers += L"\r\nCache-Control: no-cache";
+
+    ComPtr<ICoreWebView2WebResourceResponse> response;
+    if (SUCCEEDED(environment_->CreateWebResourceResponse(stream.Get(), 200, L"OK",
+                                                          headers.c_str(), &response))) {
+        args->put_Response(response.Get());
+    }
+    return S_OK;
+}
+
+const UiResource* App::FindEmbeddedResource(const std::wstring& uri) {
+    constexpr wchar_t kOrigin[] = L"https://appassets.example/";
+    constexpr size_t kOriginLength = ARRAYSIZE(kOrigin) - 1;
+
+    if (uri.compare(0, kOriginLength, kOrigin) != 0) {
+        return nullptr;
+    }
+
+    std::wstring path = uri.substr(kOriginLength);
+    // Drop any query string or fragment before matching.
+    const size_t cut = path.find_first_of(L"?#");
+    if (cut != std::wstring::npos) {
+        path.erase(cut);
+    }
+    if (path.empty()) {
+        path = L"index.html";
+    }
+
+    const std::string needle = ToUtf8(path);
+    for (size_t i = 0; i < kUiResourceCount; ++i) {
+        if (needle == kUiResources[i].path) {
+            return &kUiResources[i];
+        }
+    }
+    return nullptr;
+}
+
+HRESULT App::RespondNotFound(ICoreWebView2WebResourceRequestedEventArgs* args) {
+    ComPtr<ICoreWebView2WebResourceResponse> response;
+    if (SUCCEEDED(environment_->CreateWebResourceResponse(nullptr, 404, L"Not Found", L"",
+                                                          &response))) {
+        args->put_Response(response.Get());
+    }
     return S_OK;
 }
 

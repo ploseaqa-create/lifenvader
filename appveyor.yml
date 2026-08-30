@@ -14,14 +14,19 @@ build_script:
 
 after_build:
   - ps: |
-      New-Item -ItemType Directory -Path dist | Out-Null
-      Copy-Item build/Release/lifenvader.exe dist/
-      Copy-Item -Recurse ui dist/ui
-      # Fail loudly rather than shipping an .exe that cannot find its UI.
-      if (-not (Test-Path dist/ui/index.html)) { throw "ui/index.html missing from dist" }
-      7z a lifenvader-windows-x64.zip .\dist\* | Out-Null
-      Get-ChildItem -Recurse dist | Select-Object FullName, Length
+      $exe = "build/Release/lifenvader.exe"
+      if (-not (Test-Path $exe)) { throw "lifenvader.exe was not produced" }
+
+      # The interface is embedded, so the .exe must be self-contained. A build
+      # that lost the resources would still link but show an empty window, so
+      # check the binary actually carries them.
+      $size = (Get-Item $exe).Length
+      Write-Host "lifenvader.exe: $size bytes"
+      if ($size -lt 1MB) {
+          throw "lifenvader.exe is only $size bytes - the embedded UI is missing"
+      }
+      Copy-Item $exe .
 
 artifacts:
-  - path: lifenvader-windows-x64.zip
-    name: lifenvader-windows-x64
+  - path: lifenvader.exe
+    name: lifenvader

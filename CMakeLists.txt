@@ -48,6 +48,11 @@ target_include_directories(webview2 INTERFACE "${webview2_SOURCE_DIR}/build/nati
 target_link_libraries(webview2 INTERFACE
     "${webview2_SOURCE_DIR}/build/native/${WEBVIEW2_ARCH}/WebView2LoaderStatic.lib")
 
+# --- embedded user interface --------------------------------------------
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(EmbedUi)
+embed_ui_directory("${CMAKE_CURRENT_SOURCE_DIR}/ui" UI_RC UI_TABLE)
+
 # --- application --------------------------------------------------------
 add_executable(lifenvader WIN32
     src/main.cpp
@@ -55,6 +60,8 @@ add_executable(lifenvader WIN32
     src/Bridge.cpp
     src/backend/AuthService.cpp
     src/backend/FeedService.cpp
+    ${UI_RC}
+    ${UI_TABLE}
 )
 
 target_include_directories(lifenvader PRIVATE src)
@@ -75,10 +82,6 @@ if(MSVC)
     target_compile_options(lifenvader PRIVATE /W4 /permissive- /utf-8)
 endif()
 
-# Ship the web UI next to the executable. The host maps this folder to the
-# virtual origin https://app.lifenvader/ at runtime.
-add_custom_command(TARGET lifenvader POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_CURRENT_SOURCE_DIR}/ui"
-            "$<TARGET_FILE_DIR:lifenvader>/ui"
-    COMMENT "Copying web UI next to lifenvader.exe")
+# The interface is compiled into the binary, so lifenvader.exe ships as a
+# single file. Copying ui/ next to the .exe still overrides the embedded copy,
+# which is handy while iterating on CSS without rebuilding.

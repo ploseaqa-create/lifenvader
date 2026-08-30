@@ -30,8 +30,12 @@ cmake --build build --config Release
 build\Release\lifenvader.exe
 ```
 
-The build copies `ui/` next to the executable. Ship the `.exe` together with
-that folder.
+`ui/` is compiled into the binary as Win32 resources, so `lifenvader.exe`
+ships as a **single self-contained file**.
+
+While iterating on the interface you can put a `ui/` folder next to the
+executable — it takes precedence over the embedded copy, so CSS and HTML
+changes show up on restart without recompiling.
 
 End users need the **WebView2 Runtime**. It is preinstalled on Windows 11 and
 current Windows 10; otherwise grab the Evergreen Bootstrapper from
