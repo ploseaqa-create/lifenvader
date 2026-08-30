@@ -80,10 +80,21 @@
             };
         },
 
-        /** Fire-and-forget window control: 'close' | 'minimize' | 'drag'. */
-        window: function (action) {
+        /**
+         * Fire-and-forget window control.
+         * @param action 'close' | 'minimize' | 'drag' | 'resize'
+         * @param size   {width, height} in CSS pixels, for 'resize'
+         */
+        window: function (action, size) {
             if (host) {
-                host.postMessage({ channel: 'window:command', payload: { action: action } });
+                host.postMessage({
+                    channel: 'window:command',
+                    payload: {
+                        action: action,
+                        width: size ? Math.round(size.width) : 0,
+                        height: size ? Math.round(size.height) : 0
+                    }
+                });
             } else if (action === 'close') {
                 global.close();
             }

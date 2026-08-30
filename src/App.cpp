@@ -24,10 +24,13 @@ constexpr wchar_t kWindowTitle[] = L"Lifenvader";
 constexpr wchar_t kVirtualHost[] = L"appassets.example";
 constexpr wchar_t kStartUrl[] = L"https://appassets.example/index.html";
 
-constexpr int kDefaultWidth = 1180;
-constexpr int kDefaultHeight = 760;
-constexpr int kMinWidth = 900;
-constexpr int kMinHeight = 620;
+// Starting size; the page reports its real panel size once it has loaded.
+constexpr int kDefaultWidth = 768;
+constexpr int kDefaultHeight = 530;
+
+// Matches --radius-panel in ui/css/tokens.css (14.93px), rounded to whole
+// pixels because window regions are integral.
+constexpr int kCornerRadius = 15;
 
 std::string ToUtf8(const std::wstring& text) {
     if (text.empty()) return {};
@@ -111,16 +114,68 @@ bool App::CreateMainWindow(HINSTANCE instance, int showCommand) {
         return false;
     }
 
-    window_ = ::CreateWindowExW(0, kWindowClass, kWindowTitle, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT,
-                                CW_USEDEFAULT, kDefaultWidth, kDefaultHeight, nullptr, nullptr,
-                                instance, this);
+    // WS_POPUP: no title bar, no border, no resize frame -- the panel drawn by
+    // the page is the entire window. WS_EX_APPWINDOW keeps a taskbar entry,
+    // which a WS_POPUP window would otherwise lose.
+    window_ = ::CreateWindowExW(WS_EX_APPWINDOW, kWindowClass, kWindowTitle, WS_POPUP,
+                                CW_USEDEFAULT, CW_USEDEFAULT, kDefaultWidth, kDefaultHeight,
+                                nullptr, nullptr, instance, this);
     if (!window_) {
         return false;
     }
 
+    FitWindowToContent(kDefaultWidth, kDefaultHeight);
     ::ShowWindow(window_, showCommand);
     ::UpdateWindow(window_);
     return true;
+}
+
+void App::FitWindowToContent(int cssWidth, int cssHeight) {
+    if (!window_ || cssWidth <= 0 || cssHeight <= 0) {
+        return;
+    }
+
+    // The page reports CSS pixels; WebView2 renders them at the window's DPI.
+    const UINT dpi = ::GetDpiForWindow(window_);
+    const int width = ::MulDiv(cssWidth, static_cast<int>(dpi), 96);
+    const int height = ::MulDiv(cssHeight, static_cast<int>(dpi), 96);
+
+    // Keep the window centred on the monitor it currently sits on. If the
+    // monitor cannot be queried, resize in place rather than jumping to (0,0).
+    UINT flags = SWP_NOZORDER | SWP_NOACTIVATE;
+    int x = 0;
+    int y = 0;
+
+    MONITORINFO monitor = {sizeof(monitor)};
+    if (::GetMonitorInfoW(::MonitorFromWindow(window_, MONITOR_DEFAULTTONEAREST), &monitor)) {
+        x = monitor.rcWork.left + (monitor.rcWork.right - monitor.rcWork.left - width) / 2;
+        y = monitor.rcWork.top + (monitor.rcWork.bottom - monitor.rcWork.top - height) / 2;
+    } else {
+        flags |= SWP_NOMOVE;
+    }
+
+    ::SetWindowPos(window_, nullptr, x, y, width, height, flags);
+    ApplyRoundedCorners();
+}
+
+void App::ApplyRoundedCorners() {
+    if (!window_) return;
+
+    RECT bounds = {};
+    ::GetWindowRect(window_, &bounds);
+    const int width = bounds.right - bounds.left;
+    const int height = bounds.bottom - bounds.top;
+    if (width <= 0 || height <= 0) return;
+
+    const UINT dpi = ::GetDpiForWindow(window_);
+    const int radius = ::MulDiv(kCornerRadius * 2, static_cast<int>(dpi), 96);
+
+    // The region clips the square window down to the panel's rounded shape, so
+    // the corners show the desktop instead of a dark rectangle.
+    const HRGN region = ::CreateRoundRectRgn(0, 0, width + 1, height + 1, radius, radius);
+    if (region) {
+        ::SetWindowRgn(window_, region, TRUE);  // window owns the region now
+    }
 }
 
 HRESULT App::CreateWebView() {
@@ -190,8 +245,9 @@ HRESULT App::OnWebViewReady(ICoreWebView2Controller* controller) {
 
     // C++ -> JS
     bridge_->SetSender([this](const std::string& json) { SendToWeb(json); });
-    bridge_->SetWindowCommandHandler(
-        [this](const std::string& action) { HandleWindowCommand(action); });
+    bridge_->SetWindowCommandHandler([this](const std::string& action, int width, int height) {
+        HandleWindowCommand(action, width, height);
+    });
 
     ResizeWebView();
     webview_->Navigate(kStartUrl);
@@ -343,7 +399,7 @@ void App::SendToWeb(const std::string& json) {
     }
 }
 
-void App::HandleWindowCommand(const std::string& action) {
+void App::HandleWindowCommand(const std::string& action, int width, int height) {
     if (!window_) return;
 
     if (action == "close") {
@@ -351,9 +407,11 @@ void App::HandleWindowCommand(const std::string& action) {
     } else if (action == "minimize") {
         ::ShowWindow(window_, SW_MINIMIZE);
     } else if (action == "drag") {
-        // Let the user move the window by dragging the panel header.
+        // The window has no title bar, so dragging the panel header moves it.
         ::ReleaseCapture();
         ::SendMessageW(window_, WM_NCLBUTTONDOWN, HTCAPTION, 0);
+    } else if (action == "resize") {
+        FitWindowToContent(width, height);
     }
 }
 
@@ -396,10 +454,14 @@ LRESULT App::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             ResizeWebView();
             return 0;
 
-        case WM_GETMINMAXINFO: {
-            auto* info = reinterpret_cast<MINMAXINFO*>(lParam);
-            info->ptMinTrackSize.x = kMinWidth;
-            info->ptMinTrackSize.y = kMinHeight;
+        case WM_DPICHANGED: {
+            // Windows proposes a new rect; take it, then rebuild the region at
+            // the new scale so the corners stay round.
+            const RECT* suggested = reinterpret_cast<const RECT*>(lParam);
+            ::SetWindowPos(hwnd, nullptr, suggested->left, suggested->top,
+                           suggested->right - suggested->left, suggested->bottom - suggested->top,
+                           SWP_NOZORDER | SWP_NOACTIVATE);
+            ApplyRoundedCorners();
             return 0;
         }
 

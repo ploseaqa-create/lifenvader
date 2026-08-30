@@ -20,7 +20,9 @@
 class Bridge {
 public:
     using Sender = std::function<void(const std::string&)>;
-    using WindowCommandHandler = std::function<void(const std::string&)>;
+    // width/height are CSS pixels and only meaningful for the "resize" action.
+    using WindowCommandHandler =
+        std::function<void(const std::string& action, int width, int height)>;
 
     void SetSender(Sender sender) { sender_ = std::move(sender); }
     void SetWindowCommandHandler(WindowCommandHandler handler) {

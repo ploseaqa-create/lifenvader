@@ -26,7 +26,8 @@ void Bridge::Handle(const std::string& rawJson) {
     // Window controls are fire-and-forget and never produce a reply.
     if (channel == "window:command") {
         if (windowCommand_) {
-            windowCommand_(payload.value("action", std::string{}));
+            windowCommand_(payload.value("action", std::string{}), payload.value("width", 0),
+                           payload.value("height", 0));
         }
         return;
     }

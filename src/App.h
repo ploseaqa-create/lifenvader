@@ -45,7 +45,12 @@ private:
     // Bridge plumbing.
     void OnWebMessage(const std::wstring& json);
     void SendToWeb(const std::string& json);
-    void HandleWindowCommand(const std::string& action);
+    void HandleWindowCommand(const std::string& action, int width, int height);
+
+    // Resizes the frameless window to the panel the page is showing and
+    // reapplies the rounded corner region. Sizes are CSS pixels.
+    void FitWindowToContent(int cssWidth, int cssHeight);
+    void ApplyRoundedCorners();
 
     // Absolute path of the folder holding index.html.
     static std::wstring ResolveUiDirectory();

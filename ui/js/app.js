@@ -2,28 +2,18 @@
 (function () {
     'use strict';
 
-    /* --- scale the fixed-size design to the window ---------------------- */
+    /* --- window sizing --------------------------------------------------- */
 
-    var scaler = document.querySelector('.stage__scaler');
-
-    function fitToWindow() {
+    // The host window is frameless and has no size of its own: it is resized to
+    // whatever panel is on screen, so the app appears as just that panel.
+    function fitWindowToPanel() {
         var panel = document.querySelector('.view.is-active .panel');
         if (!panel) return;
-
-        // Reset first so offsetWidth reports the unscaled design size.
-        scaler.style.setProperty('--ui-scale', 1);
-
-        var margin = 48;
-        var scale = Math.min(
-            (window.innerWidth - margin) / panel.offsetWidth,
-            (window.innerHeight - margin) / panel.offsetHeight
-        );
-        // Never shrink below readable, never blow the artwork up too far.
-        scale = Math.max(0.75, Math.min(scale, 1.6));
-        scaler.style.setProperty('--ui-scale', scale.toFixed(4));
+        bridge.window('resize', {
+            width: panel.offsetWidth,
+            height: panel.offsetHeight
+        });
     }
-
-    window.addEventListener('resize', fitToWindow);
 
     /* --- routing -------------------------------------------------------- */
 
@@ -31,7 +21,7 @@
         document.querySelectorAll('.view').forEach(function (view) {
             view.classList.toggle('is-active', view.dataset.view === name);
         });
-        fitToWindow();
+        fitWindowToPanel();
     }
 
     /* --- window chrome -------------------------------------------------- */
@@ -119,5 +109,5 @@
             usernameInput.focus();
         });
 
-    fitToWindow();
+    fitWindowToPanel();
 })();
