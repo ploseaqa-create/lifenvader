@@ -1,0 +1,27 @@
+# Windows build on AppVeyor -- free for public repositories, and unlike
+# GitHub Actions it needs no payment method on the account.
+# Connect the repo at https://ci.appveyor.com/projects/new
+
+version: 1.0.{build}
+image: Visual Studio 2022
+configuration: Release
+platform: x64
+clone_depth: 1
+
+build_script:
+  - cmd: cmake -B build -S . -A x64
+  - cmd: cmake --build build --config Release
+
+after_build:
+  - ps: |
+      New-Item -ItemType Directory -Path dist | Out-Null
+      Copy-Item build/Release/lifenvader.exe dist/
+      Copy-Item -Recurse ui dist/ui
+      # Fail loudly rather than shipping an .exe that cannot find its UI.
+      if (-not (Test-Path dist/ui/index.html)) { throw "ui/index.html missing from dist" }
+      7z a lifenvader-windows-x64.zip .\dist\* | Out-Null
+      Get-ChildItem -Recurse dist | Select-Object FullName, Length
+
+artifacts:
+  - path: lifenvader-windows-x64.zip
+    name: lifenvader-windows-x64
