@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <title>Lifenvader</title>
+    <link rel="stylesheet" href="css/tokens.css">
+    <link rel="stylesheet" href="css/app.css">
+    <link rel="stylesheet" href="css/login.css">
+</head>
+<body>
+    <div class="stage">
+        <div class="stage__scaler">
+
+            <!-- ============ Login (Figma 6:438) ============ -->
+            <section class="view is-active" data-view="login">
+                <div class="panel login-panel">
+                    <img class="panel__bg" src="assets/panel-bg.png" alt="">
+                    <img class="panel__deco" src="assets/deco-glow.svg" alt="">
+                    <div class="panel__dragzone" data-drag-window></div>
+
+                    <button class="close-btn" type="button" data-window-action="close">
+                        <span class="close-btn__label">ESC</span>
+                        <span class="close-btn__icon">
+                            <img src="assets/icon-close.svg" alt="">
+                        </span>
+                    </button>
+
+                    <div class="brand">
+                        <h1 class="brand__title">
+                            <span class="brand__title-main">SULU</span>
+                            <span class="brand__title-accent">TION</span>
+                        </h1>
+                        <span class="brand__subtitle">Soziales Netzwerk</span>
+                    </div>
+
+                    <form class="login-form" id="loginForm" autocomplete="off">
+                        <div class="field field--input">
+                            <span class="field__icon"><img src="assets/icon-user.svg" alt=""></span>
+                            <input class="field__input" id="username" name="username"
+                                   type="text" placeholder="Username" autocomplete="username"
+                                   spellcheck="false" autofocus>
+                        </div>
+
+                        <div class="field field--input">
+                            <span class="field__icon"><img src="assets/icon-lock.svg" alt=""></span>
+                            <input class="field__input" id="password" name="password"
+                                   type="password" placeholder="Password"
+                                   autocomplete="current-password">
+                        </div>
+
+                        <label class="field field--toggle">
+                            <span class="field__icon"><img src="assets/icon-remember.svg" alt=""></span>
+                            <span class="field__label">Remember me</span>
+                            <span class="checkbox">
+                                <input type="checkbox" id="remember" name="remember">
+                                <span class="checkbox__mark"></span>
+                            </span>
+                        </label>
+                    </form>
+
+                    <button class="login-submit" type="submit" form="loginForm" id="loginSubmit">
+                        <img class="login-submit__bg" src="assets/btn-primary.png" alt="">
+                        <span>Sign In</span>
+                        <img src="assets/icon-arrow.svg" alt="">
+                    </button>
+
+                    <p class="login-error" id="loginError" role="alert"></p>
+
+                    <div class="info-box">
+                        <p class="info-box__text">Info: Erstelle eine Anzeige oder<br>sieh die News.</p>
+                        <span class="info-box__icon">
+                            <img src="assets/icon-info.svg" alt="">
+                        </span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============ Dashboard (Figma 4025:2742) ============
+                 Not implemented yet - the design context for this node could
+                 not be pulled. The router and the backend calls it needs
+                 (feed:adverts, feed:quest) already exist. -->
+            <section class="view" data-view="dashboard">
+                <div class="panel" style="width: 897px; height: 622px;">
+                    <img class="panel__bg" src="assets/panel-bg.png" alt="">
+                    <div class="panel__dragzone" data-drag-window></div>
+                    <button class="close-btn" type="button" data-window-action="close"
+                            style="left: 814px; top: 13px; width: 63.92px; height: 29.88px;">
+                        <span class="close-btn__label">ESC</span>
+                        <span class="close-btn__icon"><img src="assets/icon-close.svg" alt=""></span>
+                    </button>
+                    <div class="brand" style="left: 24px; top: 28px;">
+                        <h1 class="brand__title">
+                            <span class="brand__title-main">SULU</span>
+                            <span class="brand__title-accent">TION</span>
+                        </h1>
+                        <span class="brand__subtitle">Deine Fahrzeuge an einem Ort</span>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="js/bridge.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

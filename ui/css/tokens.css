@@ -1,0 +1,97 @@
+/* Design tokens taken from the Figma file
+   "FUTURE SERVICE - ECHO DEV" > LIFENVADER.
+   Figma token names are kept in comments so the mapping stays traceable. */
+
+:root {
+    /* --- palette ---------------------------------------------------- */
+    --violet-55: #8a2deb;        /* Electric Violet   color/violet/55  */
+    --violet-66: #a652ff;        /* Heliotrope        color/violet/66  */
+    --red-66: #ff5255;           /* Sunset Orange     color/red/66     */
+    --red-40: #993132;           /* color/red/40                       */
+    --red-69: #ff6265;           /* Bittersweet       color/red/69     */
+    --green-69: #b8ff62;         /* Green Yellow      color/chartreuse-green/69 */
+
+    --white: #ffffff;
+    --white-72: rgba(255, 255, 255, 0.72);
+    --white-56: rgba(255, 255, 255, 0.56);
+    --white-50: rgba(255, 255, 255, 0.5);
+    --white-15: rgba(255, 255, 255, 0.15);
+    --white-10: rgba(255, 255, 255, 0.1);
+    --white-07: rgba(255, 255, 255, 0.07);
+    --white-04: rgba(255, 255, 255, 0.04);
+    --white-03: rgba(255, 255, 255, 0.03);
+    --white-02: rgba(255, 255, 255, 0.02);
+
+    /* Window backdrop behind the floating panel. */
+    --backdrop: #0b0612;
+
+    /* --- typography -------------------------------------------------- */
+    /* Font 3 - branding wordmark */
+    --font-display: "TT Octosquares Trl Cnd", "Rajdhani", "Segoe UI", sans-serif;
+    /* Font 4 - all interface copy */
+    --font-ui: "Estricta", "Rajdhani", "Segoe UI", sans-serif;
+    /* Font 9 - primary buttons */
+    --font-action: "Rajdhani", "Segoe UI", sans-serif;
+
+    /* --- radii, strokes, shadows ------------------------------------- */
+    --radius-panel: 14.93px;
+    --radius-md: 2.98px;
+    --radius-sm: 1.99px;
+    --radius-xs: 1px;
+    --stroke: 0.996px;
+
+    --shadow-row: 0 3.977px 3.977px rgba(0, 0, 0, 0.25);
+    --shadow-action: 0 8.967px 26.883px rgba(166, 82, 255, 0.45);
+    --shadow-panel: 0 32px 80px rgba(0, 0, 0, 0.55);
+
+    --glow-white: 0 0 22.715px rgba(255, 255, 255, 0.16);
+    --glow-red: 0 0 23.804px rgba(255, 81, 84, 0.27);
+}
+
+/* Rajdhani ships with the app (SIL Open Font License). */
+@font-face {
+    font-family: "Rajdhani";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("../fonts/rajdhani-400.woff2") format("woff2");
+}
+@font-face {
+    font-family: "Rajdhani";
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url("../fonts/rajdhani-500.woff2") format("woff2");
+}
+@font-face {
+    font-family: "Rajdhani";
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url("../fonts/rajdhani-600.woff2") format("woff2");
+}
+@font-face {
+    font-family: "Rajdhani";
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url("../fonts/rajdhani-700.woff2") format("woff2");
+}
+
+/* Estricta and TT Octosquares are commercial fonts and are NOT bundled.
+   Drop the licensed .woff2 files into ui/fonts/ and these rules pick them
+   up automatically; until then the stack falls back to Rajdhani. */
+@font-face {
+    font-family: "Estricta";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("../fonts/estricta-regular.woff2") format("woff2");
+}
+@font-face {
+    font-family: "TT Octosquares Trl Cnd";
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url("../fonts/tt-octosquares-cnd-bold.woff2") format("woff2");
+}

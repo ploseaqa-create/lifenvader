@@ -1,0 +1,123 @@
+/* View routing, window chrome and the login flow. */
+(function () {
+    'use strict';
+
+    /* --- scale the fixed-size design to the window ---------------------- */
+
+    var scaler = document.querySelector('.stage__scaler');
+
+    function fitToWindow() {
+        var panel = document.querySelector('.view.is-active .panel');
+        if (!panel) return;
+
+        // Reset first so offsetWidth reports the unscaled design size.
+        scaler.style.setProperty('--ui-scale', 1);
+
+        var margin = 48;
+        var scale = Math.min(
+            (window.innerWidth - margin) / panel.offsetWidth,
+            (window.innerHeight - margin) / panel.offsetHeight
+        );
+        // Never shrink below readable, never blow the artwork up too far.
+        scale = Math.max(0.75, Math.min(scale, 1.6));
+        scaler.style.setProperty('--ui-scale', scale.toFixed(4));
+    }
+
+    window.addEventListener('resize', fitToWindow);
+
+    /* --- routing -------------------------------------------------------- */
+
+    function showView(name) {
+        document.querySelectorAll('.view').forEach(function (view) {
+            view.classList.toggle('is-active', view.dataset.view === name);
+        });
+        fitToWindow();
+    }
+
+    /* --- window chrome -------------------------------------------------- */
+
+    document.addEventListener('click', function (event) {
+        var trigger = event.target.closest('[data-window-action]');
+        if (trigger) {
+            bridge.window(trigger.dataset.windowAction);
+        }
+    });
+
+    document.addEventListener('mousedown', function (event) {
+        if (event.button !== 0) return;
+        if (event.target.closest('[data-drag-window]') && !event.target.closest('button, input, label, a')) {
+            bridge.window('drag');
+        }
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+            bridge.window('close');
+        }
+    });
+
+    /* --- login ---------------------------------------------------------- */
+
+    var form = document.getElementById('loginForm');
+    var submit = document.getElementById('loginSubmit');
+    var errorLine = document.getElementById('loginError');
+    var usernameInput = document.getElementById('username');
+    var passwordInput = document.getElementById('password');
+    var rememberInput = document.getElementById('remember');
+
+    function setError(message) {
+        errorLine.textContent = message || '';
+    }
+
+    form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        setError('');
+        submit.disabled = true;
+
+        bridge
+            .call('auth:login', {
+                username: usernameInput.value,
+                password: passwordInput.value,
+                remember: rememberInput.checked
+            })
+            .then(function (user) {
+                passwordInput.value = '';
+                document.dispatchEvent(new CustomEvent('auth:signedin', { detail: user }));
+                showView('dashboard');
+            })
+            .catch(function (error) {
+                setError(error.message);
+                passwordInput.value = '';
+                passwordInput.focus();
+            })
+            .finally(function () {
+                submit.disabled = false;
+            });
+    });
+
+    // Clear a stale error as soon as the user starts correcting the input.
+    [usernameInput, passwordInput].forEach(function (input) {
+        input.addEventListener('input', function () {
+            if (errorLine.textContent) setError('');
+        });
+    });
+
+    /* --- boot ----------------------------------------------------------- */
+
+    bridge
+        .call('auth:rememberedUser')
+        .then(function (result) {
+            if (result && result.username) {
+                usernameInput.value = result.username;
+                rememberInput.checked = true;
+                passwordInput.focus();
+            } else {
+                usernameInput.focus();
+            }
+        })
+        .catch(function () {
+            usernameInput.focus();
+        });
+
+    fitToWindow();
+})();

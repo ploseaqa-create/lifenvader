@@ -1,0 +1,199 @@
+/* Application shell: window backdrop, panel frame, view switching. */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    background: var(--backdrop);
+    color: var(--white);
+    font-family: var(--font-ui);
+    overflow: hidden;
+    user-select: none;
+    cursor: default;
+}
+
+/* Soft violet bloom so the panel does not float on flat black. */
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background:
+        radial-gradient(60% 55% at 78% 12%, rgba(138, 45, 235, 0.22), transparent 70%),
+        radial-gradient(50% 50% at 15% 90%, rgba(166, 82, 255, 0.14), transparent 72%);
+    pointer-events: none;
+}
+
+/* The design is authored at a fixed size; app.js scales this wrapper to fit
+   the window so proportions stay exactly as drawn in Figma. */
+.stage {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+}
+
+.stage__scaler {
+    transform: scale(var(--ui-scale, 1));
+    transform-origin: center center;
+    transition: transform 120ms ease-out;
+}
+
+.view {
+    display: none;
+}
+
+.view.is-active {
+    display: block;
+}
+
+/* --- panel frame ---------------------------------------------------- */
+
+.panel {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-panel);
+    background-color: #0d0716;
+}
+
+.panel__bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    /* Figma stretches this export to the container box. */
+    object-fit: fill;
+    pointer-events: none;
+}
+
+.panel__deco {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 628.38px;
+    height: 644.302px;
+    pointer-events: none;
+}
+
+/* Dragging anywhere on the header chrome moves the OS window. */
+.panel__dragzone {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    height: 66px;
+    cursor: grab;
+}
+
+.panel__dragzone:active {
+    cursor: grabbing;
+}
+
+/* --- ESC / close ---------------------------------------------------- */
+
+.close-btn {
+    position: absolute;
+    display: block;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(to left, rgba(255, 81, 84, 0.18), rgba(153, 49, 50, 0.05));
+    cursor: pointer;
+}
+
+.close-btn__label {
+    position: absolute;
+    right: 31.85px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: var(--font-ui);
+    font-size: 14.4px;
+    letter-spacing: -0.86px;
+    color: var(--red-66);
+    text-shadow: var(--glow-red);
+    white-space: nowrap;
+}
+
+.close-btn__icon {
+    position: absolute;
+    left: 38.05px;
+    top: 3.98px;
+    width: 21.91px;
+    height: 21.91px;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(to right, var(--red-66), var(--red-40));
+}
+
+.close-btn__icon img {
+    position: absolute;
+    left: 6.48px;
+    top: 6.48px;
+    width: 8.95px;
+    height: 8.95px;
+}
+
+.close-btn:hover .close-btn__icon {
+    filter: brightness(1.15);
+}
+
+/* --- branding wordmark ---------------------------------------------- */
+
+.brand {
+    position: absolute;
+    width: 241.86px;
+    height: 47.91px;
+}
+
+.brand__title {
+    position: relative;
+    height: 31.88px;
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 700;
+    line-height: 31.87px;
+}
+
+.brand__title-main {
+    position: absolute;
+    left: -0.3px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 31.4px;
+    letter-spacing: -2.868px;
+    color: var(--white);
+    white-space: nowrap;
+}
+
+.brand__title-accent {
+    position: absolute;
+    left: 60.7px;
+    top: 15.73px;
+    transform: translateY(-50%) rotate(0.25deg) scale(0.95, 0.98) skewX(-11.75deg);
+    font-size: 33.6px;
+    line-height: 20.447px;
+    letter-spacing: -4.4758px;
+    color: var(--violet-55);
+    white-space: nowrap;
+}
+
+.brand__subtitle {
+    position: absolute;
+    left: 0;
+    top: 31.89px;
+    height: 16.023px;
+    display: flex;
+    align-items: center;
+    font-size: 14.9px;
+    letter-spacing: -0.593px;
+    color: var(--white-50);
+    white-space: nowrap;
+}

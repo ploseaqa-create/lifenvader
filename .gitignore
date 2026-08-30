@@ -1,0 +1,6 @@
+build/
+out/
+.vs/
+.webview2/
+*.user
+lifenvader.session

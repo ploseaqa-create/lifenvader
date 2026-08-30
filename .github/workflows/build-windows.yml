@@ -1,0 +1,37 @@
+name: Build Windows
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:   # lets you start a build by hand from the Actions tab
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -B build -S . -A x64
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Stage release folder
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path dist | Out-Null
+          Copy-Item build/Release/lifenvader.exe dist/
+          Copy-Item -Recurse ui dist/ui
+          # Fail loudly rather than shipping an .exe that cannot find its UI.
+          if (-not (Test-Path dist/ui/index.html)) { throw "ui/index.html missing from dist" }
+          Get-ChildItem -Recurse dist | Select-Object FullName, Length
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lifenvader-windows-x64
+          path: dist/
+          if-no-files-found: error

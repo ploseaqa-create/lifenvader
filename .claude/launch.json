@@ -1,0 +1,16 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "probe",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-I",
+        "-c",
+        "import os, sys, functools, http.server, socketserver; os.chdir(sys.argv[1]); socketserver.TCPServer.allow_reuse_address = True; handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=sys.argv[1]); socketserver.TCPServer(('127.0.0.1', 8792), handler).serve_forever()",
+        "/private/tmp/claude-501/-Users-fabio-Desktop-untitled-folder-3/d2e3a05d-4f94-449d-b9af-7abbe76c9943/scratchpad/probe"
+      ],
+      "port": 8792
+    }
+  ]
+}
