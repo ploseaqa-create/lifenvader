@@ -17,8 +17,10 @@ constexpr wchar_t kWindowTitle[] = L"Lifenvader";
 // The UI folder is served under this synthetic origin so that fetch(),
 // ES modules and relative URLs behave like on a normal web page. Loading
 // index.html from file:// would trip CORS on every module import.
-constexpr wchar_t kVirtualHost[] = L"app.lifenvader";
-constexpr wchar_t kStartUrl[] = L"https://app.lifenvader/index.html";
+// `.example` is reserved by IANA and can never resolve on the public internet,
+// so a broken mapping fails loudly instead of silently hitting a real host.
+constexpr wchar_t kVirtualHost[] = L"appassets.example";
+constexpr wchar_t kStartUrl[] = L"https://appassets.example/index.html";
 
 constexpr int kDefaultWidth = 1180;
 constexpr int kDefaultHeight = 760;
@@ -161,11 +163,39 @@ HRESULT App::OnWebViewReady(ICoreWebView2Controller* controller) {
         settings->put_IsZoomControlEnabled(FALSE);
     }
 
-    // Serve ./ui as https://app.lifenvader/ (read-only for the page).
+    // Serve ./ui as https://appassets.example/ (read-only for the page).
+    //
+    // Every failure below has to be reported: if the mapping is not registered,
+    // WebView2 falls back to real DNS and the user sees a confusing
+    // ERR_NAME_NOT_RESOLVED instead of the actual problem.
+    const std::wstring uiDir = ResolveUiDirectory();
+
+    if (!::PathFileExistsW((uiDir + L"\\index.html").c_str())) {
+        ShowFatalError(L"The user interface is missing.\n\n"
+                       L"Expected:\n" + uiDir +
+                       L"\\index.html\n\n"
+                       L"Keep the 'ui' folder next to lifenvader.exe - copying the .exe on "
+                       L"its own is not enough.");
+        ::PostQuitMessage(1);
+        return E_FAIL;
+    }
+
     ComPtr<ICoreWebView2_3> webview3;
-    if (SUCCEEDED(webview_.As(&webview3))) {
-        webview3->SetVirtualHostNameToFolderMapping(kVirtualHost, ResolveUiDirectory().c_str(),
-                                                    COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_DENY_CORS);
+    HRESULT hr = webview_.As(&webview3);
+    if (FAILED(hr)) {
+        ShowFatalError(L"This WebView2 runtime is too old: it does not provide "
+                       L"ICoreWebView2_3.\n\nInstall the current WebView2 runtime from\n"
+                       L"https://developer.microsoft.com/microsoft-edge/webview2/");
+        ::PostQuitMessage(1);
+        return hr;
+    }
+
+    hr = webview3->SetVirtualHostNameToFolderMapping(
+        kVirtualHost, uiDir.c_str(), COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_DENY_CORS);
+    if (FAILED(hr)) {
+        ShowFatalError(L"Could not map the UI folder:\n" + uiDir);
+        ::PostQuitMessage(1);
+        return hr;
     }
 
     // JS -> C++
